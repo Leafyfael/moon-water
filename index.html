@@ -156,6 +156,64 @@ function Rain() {
   );
 }
 
+
+// Password gate
+const PWD = "080324Com";
+function PasswordScreen({ onPass }) {
+  const [val, setVal] = React.useState("");
+  const [shake, setShake] = React.useState(false);
+  const submit = () => {
+    if (val === PWD) { onPass(); }
+    else {
+      setShake(true);
+      setTimeout(() => { setShake(false); setVal(""); }, 600);
+    }
+  };
+  return (
+    <div style={{
+      minHeight:"100vh", display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center", padding:40,
+    }}>
+      <div style={{ marginBottom:32, textAlign:"center" }}>
+        <div style={{ width:32, height:32, borderRadius:"50%", margin:"0 auto 20px",
+          background:`radial-gradient(circle at 35% 35%, #F5F6F8 0%, #8B9FBB 200%)`,
+          boxShadow:"0 0 40px rgba(139,159,187,0.12)" }} />
+        <div style={{ fontSize:11, fontWeight:200, letterSpacing:8, color:"#3B3B4A" }}>月亮的背面有水</div>
+      </div>
+      <div style={{ animation: shake ? "shake .5s ease" : "none" }}>
+        <style>{`
+          @keyframes shake {
+            0%,100%{transform:translateX(0)}
+            20%,60%{transform:translateX(-8px)}
+            40%,80%{transform:translateX(8px)}
+          }
+        `}</style>
+        <input
+          type="password"
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && submit()}
+          placeholder="·  ·  ·"
+          autoFocus
+          style={{
+            display:"block", width:200, textAlign:"center",
+            padding:"10px 16px", border:"none",
+            borderBottom:`1px solid rgba(139,159,187,0.3)`,
+            background:"transparent", outline:"none",
+            fontFamily:"'Noto Serif SC',serif", fontSize:18,
+            letterSpacing:8, color:"#3B3B4A",
+          }}
+        />
+        <div onClick={submit} style={{
+          marginTop:24, textAlign:"center", cursor:"pointer",
+          fontFamily:"'EB Garamond',serif", fontSize:10,
+          letterSpacing:4, color:"#9D9DB0", textTransform:"uppercase",
+        }}>enter</div>
+      </div>
+    </div>
+  );
+}
+
 // Cover page
 function Cover({ onEnter }) {
   return (
@@ -816,6 +874,7 @@ function MemoryDetail({ memory, section, onBack }) {
 
 // Main app
 function App() {
+  const [authed, setAuthed] = useState(() => sessionStorage.getItem("moon_auth") === "1");
   const [view, setView] = useState("cover"); // cover, home, section, detail
   const [currentSection, setCurrentSection] = useState(null);
   const [currentMemory, setCurrentMemory] = useState(null);
@@ -850,6 +909,8 @@ function App() {
       margin: "0 auto",
       position: "relative",
     }}>
+      {!authed && <PasswordScreen onPass={() => { sessionStorage.setItem("moon_auth","1"); setAuthed(true); }} />}
+      {authed && <>
       <Rain />
       {dataLoading && (
         <div style={{
@@ -871,6 +932,7 @@ function App() {
         {view === "detail" && <MemoryDetail memory={currentMemory} section={currentSection} onBack={goBackFromDetail} />}
       </div>
     </div>
+    </>}
   );
 }
 
