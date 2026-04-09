@@ -70,7 +70,7 @@ const SECTIONS = [
   { id: "weather", name: "天气", en: "Weather", color: COLORS.sky, soft: COLORS.skySoft, dia: COLORS.sky },
 ];
 
-const API_BASE = "https://brain-proxy-la3jyc6s6-leafyfaels-projects.vercel.app";
+const API_BASE = "";
 
 const DOMAIN_MAP = {
   "内心":"blackbox","心理":"blackbox","自省":"blackbox",
@@ -444,18 +444,12 @@ function Home({ onSection, memories }) {
   const [bottleView, setBottleView] = useState("pick"); // pick or write
   const [pickedBottle, setPickedBottle] = useState(null);
 
-  const popBubble = async () => {
+  const popBubble = () => {
+    const allMems = Object.values(memories).flat();
+    if (allMems.length === 0) return;
+    const m = allMems[Math.floor(Math.random() * allMems.length)];
+    setBubbleMem(m);
     setShowBubble(true);
-    setBubbleMem(null);
-    try {
-      const r = await fetch(`${API_BASE}/api/breath`);
-      const d = await r.json();
-      const list = d.memories || [];
-      if (list.length > 0) {
-        const b = list[Math.floor(Math.random() * list.length)];
-        setBubbleMem(transformBucket(b, getBucketSection(b)));
-      }
-    } catch(e) { setBubbleMem(null); }
   };
 
   const pickBottle = () => {
@@ -751,16 +745,8 @@ function MemoryDetail({ memory, section, onBack }) {
   const [detailLoading, setDetailLoading] = useState(!memory._loaded);
 
   useEffect(() => {
-    if (!memory._loaded) {
-      fetch(`${API_BASE}/api/memories/${memory.id}`)
-        .then(r => r.json())
-        .then(d => {
-          const txt = cleanText(d.content);
-          setFullContent(txt || memory.quote);
-          setDetailLoading(false);
-        })
-        .catch(() => { setFullContent(memory.quote); setDetailLoading(false); });
-    }
+    setFullContent(memory.full || memory.quote);
+    setDetailLoading(false);
   }, [memory.id]);
 
   return (
@@ -837,7 +823,7 @@ function App() {
   const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/memories`)
+    fetch("data/memories.json")
       .then(r => r.json())
       .then(d => { setMemories(buildMemories(d.memories || [])); setDataLoading(false); })
       .catch(() => setDataLoading(false));

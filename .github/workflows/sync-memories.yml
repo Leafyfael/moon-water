@@ -1,0 +1,46 @@
+name: Sync Brain Memories
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch memories with full content
+        run: |
+          mkdir -p data
+          curl -sf --max-time 30 "http://1.14.93.124:18001/api/memories" -o /tmp/list.json
+          python3 << 'PYEOF'
+          import json, urllib.request, sys
+
+          with open('/tmp/list.json') as f:
+              data = json.load(f)
+
+          for mem in data.get('memories', []):
+              try:
+                  url = f"http://1.14.93.124:18001/api/memories/{mem['id']}"
+                  with urllib.request.urlopen(url, timeout=10) as r:
+                      detail = json.loads(r.read())
+                      mem['content'] = detail.get('content', '')
+              except Exception as e:
+                  mem['content'] = ''
+                  print(f"warn: {mem['id']} {e}", file=sys.stderr)
+
+          with open('data/memories.json', 'w', encoding='utf-8') as f:
+              json.dump(data, f, ensure_ascii=False, indent=2)
+
+          print(f"Saved {len(data.get('memories',[]))} memories with content")
+          PYEOF
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/memories.json
+          git diff --staged --quiet || git commit -m "sync: update memories [skip ci]"
+          git push
