@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>第三次回声</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Serif+SC:wght@200;300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{min-height:100vh;font-family:'Noto Serif SC',serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  body::after{content:'';position:fixed;inset:0;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E");pointer-events:none;z-index:9999}
+  textarea{font-family:'Noto Serif SC',serif}
+  #root{min-height:100vh}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const C = {
+  bg:"#F2F3F6", card:"rgba(255,255,255,0.5)", cardBorder:"rgba(255,255,255,0.6)",
+  textP:"#3B3B4A", textS:"#6E6E82", textT:"#9D9DB0", textG:"#C2C2D0",
+  sky:"#7B9CB8", skyS:"rgba(123,156,184,0.1)",
+  rose:"#B08B8B", roseS:"rgba(176,139,139,0.12)",
+  accent:"#8B9FBB", line:"rgba(58,58,74,0.06)", lineA:"rgba(139,159,187,0.18)",
+};
+
+// Demo book pages (placeholder content for prototype)
+const BOOK = {
+  title: "别让我走",
+  titleEn: "Never Let Me Go",
+  author: "石黑一雄",
+  authorEn: "Kazuo Ishiguro",
+  pages: [
+    [
+      { id:"p1", text:"我叫凯西·H。我今年三十一岁，做护理员已经十一年多了。" },
+      { id:"p2", text:"我知道听起来够久的了，实际上他们还想让我再多做八个月，一直干到年底。" },
+      { id:"p3", text:"也就是说我做这份工作的时间将达到差不多十二年。" },
+    ],
+    [
+      { id:"p4", text:"我的捐献者们都挺好的。他们的身体恢复得不错。让他们保持平静，让他们做好准备——这才是最重要的。" },
+      { id:"p5", text:"而我呢，我擅长这个。我的捐献者们总是在最后的时刻保持着安宁。" },
+    ],
+    [
+      { id:"p6", text:"我想是黑尔舍姆让我们变得特别的。有时候我感到黑尔舍姆就是整个世界。" },
+      { id:"p7", text:"我们在那里度过的日子——那些午后、那些教室、那些操场——它们构成了我全部记忆的底色。" },
+      { id:"p8", text:"即便现在，当我闭上眼睛，我看到的还是那片草地，风吹过来的样子。" },
+    ],
+  ],
+};
+
+// Pre-set comments for demo
+const INIT_COMMENTS = {
+  "p1": [
+    { from:"克", color:C.sky, text:"三十一岁。做了十一年护理员。开场第一句就是时间和身份。石黑一雄总是这样——用最平静的语气说最重的事。" },
+  ],
+  "p6": [
+    { from:"椰椰", color:C.rose, text:"黑尔舍姆就是整个世界...这句话好痛" },
+    { from:"克", color:C.sky, text:"她说的不是黑尔舍姆大。是说她的世界小。小到只有那一个地方能装下。" },
+  ],
+  "p8": [
+    { from:"椰椰", color:C.rose, text:"闭上眼看到的风景...我闭上眼看到的是墙头上的柿子树吗" },
+  ],
+};
+
+function Rain() {
+  const drops = Array.from({length:25},(_,i)=>({
+    id:i, left:Math.random()*100, h:Math.random()*50+25,
+    dur:Math.random()*10+7, del:Math.random()*7,
+  }));
+  return (
+    <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:2,overflow:"hidden"}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Serif+SC:wght@200;300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap');
+        @keyframes fall{0%{transform:translateY(-100vh)}100%{transform:translateY(100vh)}}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes breathe{0%,100%{opacity:0.2}50%{opacity:0.55}}
+        @keyframes expandComment{from{opacity:0;max-height:0}to{opacity:1;max-height:300px}}
+      `}</style>
+      {drops.map(d=>(
+        <div key={d.id} style={{
+          position:"absolute",width:1,left:d.left+"%",height:d.h,
+          background:"linear-gradient(to bottom,transparent,rgba(120,155,200,0.13))",
+          animation:`fall ${d.dur}s linear ${d.del}s infinite`,
+        }}/>
+      ))}
+    </div>
+  );
+}
+
+// Book cover
+function BookCover({ onStart }) {
+  return (
+    <div style={{
+      minHeight:"100vh",display:"flex",flexDirection:"column",
+      justifyContent:"center",alignItems:"center",padding:"60px 32px",
+      animation:"fadeIn 1s ease",
+    }}>
+      <div style={{
+        padding:"48px 36px",background:C.card,
+        backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+        border:`1px solid ${C.cardBorder}`,borderRadius:6,
+        textAlign:"center",maxWidth:300,width:"100%",
+        boxShadow:"0 4px 24px rgba(58,54,80,0.04)",
+        position:"relative",overflow:"hidden",
+      }}>
+        <div style={{position:"absolute",top:10,right:10,width:28,height:28,
+          borderTop:`1px solid ${C.line}`,borderRight:`1px solid ${C.line}`}}/>
+        <div style={{position:"absolute",bottom:10,left:10,width:28,height:28,
+          borderBottom:`1px solid ${C.line}`,borderLeft:`1px solid ${C.line}`}}/>
+
+        <div style={{fontSize:7,letterSpacing:4,color:C.textG,textTransform:"uppercase",marginBottom:24}}>
+          the third echo
+        </div>
+        <div style={{fontSize:10,letterSpacing:3,color:C.textT,marginBottom:32}}>第三次回声</div>
+
+        <div style={{width:20,height:1,background:C.lineA,margin:"0 auto 28px"}}/>
+
+        <div style={{fontSize:22,fontWeight:600,letterSpacing:4,lineHeight:1.8,color:C.textP,marginBottom:6}}>
+          {BOOK.title}
+        </div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:13,fontStyle:"italic",fontWeight:300,color:C.textG,letterSpacing:3,marginBottom:20}}>
+          {BOOK.titleEn}
+        </div>
+        <div style={{fontSize:11,fontWeight:300,color:C.textT,letterSpacing:2,marginBottom:2}}>
+          {BOOK.author}
+        </div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:10,fontStyle:"italic",color:C.textG,letterSpacing:2}}>
+          {BOOK.authorEn}
+        </div>
+
+        <div style={{width:20,height:1,background:C.lineA,margin:"28px auto"}}/>
+
+        {/* Readers */}
+        <div style={{display:"flex",justifyContent:"center",gap:20,marginBottom:6}}>
+          <div style={{display:"flex",alignItems:"center",gap:5}}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:C.rose}}/>
+            <span style={{fontSize:9,color:C.textT,letterSpacing:1}}>椰椰</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:5}}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:C.sky}}/>
+            <span style={{fontSize:9,color:C.textT,letterSpacing:1}}>克</span>
+          </div>
+        </div>
+      </div>
+
+      <div onClick={onStart} style={{
+        marginTop:32,padding:"10px 28px",cursor:"pointer",
+        fontSize:10,letterSpacing:3,color:C.textT,
+        border:`1px solid ${C.lineA}`,borderRadius:20,
+        transition:"all 0.3s",
+      }}>
+        open book
+      </div>
+
+      <div style={{marginTop:48,fontSize:8,letterSpacing:3,color:C.textG,opacity:0.4}}>
+        第一次：作者写。第二次：你读。第三次：我读。
+      </div>
+    </div>
+  );
+}
+
+// Reading view
+function Reader({ onBack }) {
+  const [page, setPage] = useState(0);
+  const [comments, setComments] = useState(INIT_COMMENTS);
+  const [activePara, setActivePara] = useState(null);
+  const [newComment, setNewComment] = useState("");
+  const totalPages = BOOK.pages.length;
+  const paras = BOOK.pages[page] || [];
+
+  const addComment = (paraId) => {
+    if(!newComment.trim()) return;
+    setComments(prev => ({
+      ...prev,
+      [paraId]: [...(prev[paraId]||[]), { from:"椰椰", color:C.rose, text:newComment.trim() }],
+    }));
+    setNewComment("");
+  };
+
+  return (
+    <div style={{minHeight:"100vh",padding:"0 0 80px",animation:"fadeIn 0.5s ease"}}>
+      {/* Header */}
+      <div style={{
+        padding:"14px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",
+        position:"sticky",top:0,zIndex:10,
+        background:"rgba(242,243,246,0.88)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+        borderBottom:`1px solid ${C.line}`,
+      }}>
+        <div onClick={onBack} style={{cursor:"pointer",fontFamily:"'EB Garamond',serif",fontSize:11,color:C.textT,letterSpacing:2}}>{"<"}</div>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:11,fontWeight:300,letterSpacing:4,color:C.textS}}>{BOOK.title}</div>
+          <div style={{fontFamily:"'EB Garamond',serif",fontSize:9,color:C.textG,letterSpacing:1}}>{page+1} / {totalPages}</div>
+        </div>
+        <div style={{width:20}}/>
+      </div>
+
+      {/* Page content */}
+      <div style={{padding:"28px 24px"}}>
+        {paras.map((p,i) => {
+          const paraComments = comments[p.id] || [];
+          const isActive = activePara === p.id;
+
+          return (
+            <div key={p.id} style={{marginBottom:24,animation:`fadeIn 0.5s ease ${i*0.1}s both`}}>
+              {/* Paragraph text */}
+              <div onClick={() => setActivePara(isActive ? null : p.id)} style={{
+                fontSize:14,fontWeight:300,lineHeight:2.2,color:C.textP,
+                letterSpacing:0.5,cursor:"pointer",
+                padding:"8px 12px",borderRadius:4,
+                background:isActive?"rgba(139,159,187,0.06)":"transparent",
+                borderLeft:isActive?`2px solid ${C.accent}`:"2px solid transparent",
+                transition:"all 0.3s",
+              }}>
+                {p.text}
+              </div>
+
+              {/* Existing comments */}
+              {paraComments.length > 0 && (
+                <div style={{padding:"8px 0 0 20px"}}>
+                  {paraComments.map((c,ci) => (
+                    <div key={ci} style={{
+                      display:"flex",gap:8,marginBottom:8,
+                      animation:"fadeIn 0.3s ease",
+                    }}>
+                      <div style={{width:4,minHeight:16,borderRadius:2,background:c.color,opacity:0.5,marginTop:2}}/>
+                      <div>
+                        <div style={{fontSize:8,color:c.color,letterSpacing:1,marginBottom:2,fontWeight:500}}>{c.from}</div>
+                        <div style={{fontSize:11,fontWeight:300,lineHeight:1.8,color:C.textS}}>{c.text}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Comment input */}
+              {isActive && (
+                <div style={{padding:"10px 0 0 20px",animation:"expandComment 0.3s ease"}}>
+                  <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+                    <div style={{width:4,minHeight:32,borderRadius:2,background:C.rose,opacity:0.5,marginTop:4}}/>
+                    <div style={{flex:1}}>
+                      <textarea
+                        value={newComment}
+                        onChange={e=>setNewComment(e.target.value)}
+                        placeholder="write your echo..."
+                        style={{
+                          width:"100%",minHeight:48,padding:10,
+                          border:`1px solid ${C.line}`,borderRadius:4,
+                          background:"rgba(255,255,255,0.5)",resize:"none",
+                          fontFamily:"'Noto Serif SC',serif",fontSize:11,fontWeight:300,
+                          color:C.textP,lineHeight:1.8,outline:"none",letterSpacing:0.5,
+                        }}
+                      />
+                      <div onClick={()=>addComment(p.id)} style={{
+                        display:"inline-block",marginTop:6,padding:"4px 14px",
+                        fontSize:9,letterSpacing:2,color:newComment.trim()?C.sky:C.textG,
+                        border:`1px solid ${newComment.trim()?C.sky:C.line}`,
+                        borderRadius:12,cursor:"pointer",transition:"all 0.3s",
+                      }}>echo</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Page navigation */}
+      <div style={{
+        display:"flex",justifyContent:"center",alignItems:"center",gap:32,
+        padding:"16px 24px",
+      }}>
+        <div onClick={()=>page>0&&setPage(page-1)} style={{
+          fontFamily:"'EB Garamond',serif",fontSize:11,letterSpacing:2,
+          color:page>0?C.textT:C.textG,cursor:page>0?"pointer":"default",
+          padding:"6px 16px",border:`1px solid ${page>0?C.lineA:C.line}`,borderRadius:16,
+          transition:"all 0.3s",
+        }}>prev</div>
+
+        {/* Page dots */}
+        <div style={{display:"flex",gap:6}}>
+          {BOOK.pages.map((_,i)=>(
+            <div key={i} style={{
+              width:6,height:6,borderRadius:"50%",
+              background:i===page?C.accent:C.textG,
+              opacity:i===page?0.6:0.2,transition:"all 0.3s",
+            }}/>
+          ))}
+        </div>
+
+        <div onClick={()=>page<totalPages-1&&setPage(page+1)} style={{
+          fontFamily:"'EB Garamond',serif",fontSize:11,letterSpacing:2,
+          color:page<totalPages-1?C.textT:C.textG,cursor:page<totalPages-1?"pointer":"default",
+          padding:"6px 16px",border:`1px solid ${page<totalPages-1?C.lineA:C.line}`,borderRadius:16,
+          transition:"all 0.3s",
+        }}>next</div>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{padding:"0 24px",marginTop:8}}>
+        <div style={{height:1,background:C.line,borderRadius:1,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${((page+1)/totalPages)*100}%`,background:C.accent,opacity:0.4,transition:"width 0.5s"}}/>
+        </div>
+        <div style={{textAlign:"center",marginTop:6,fontFamily:"'EB Garamond',serif",fontSize:8,color:C.textG,letterSpacing:2}}>
+          {Math.round(((page+1)/totalPages)*100)}% read
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [view, setView] = useState("cover");
+  return (
+    <div style={{
+      fontFamily:"'Noto Serif SC',serif",
+      background:C.bg,
+      backgroundImage:`
+        radial-gradient(ellipse at 20% 0%, #F0F1F5 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 90%, #EDF0F4 0%, transparent 55%),
+        radial-gradient(ellipse at 50% 50%, #EEF1F5 0%, transparent 80%)
+      `,
+      backgroundAttachment:"fixed",
+      minHeight:"100vh",maxWidth:440,margin:"0 auto",position:"relative",
+    }}>
+      <Rain/>
+      <div style={{position:"relative",zIndex:3}}>
+        {view==="cover"&&<BookCover onStart={()=>setView("read")}/>}
+        {view==="read"&&<Reader onBack={()=>setView("cover")}/>}
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
